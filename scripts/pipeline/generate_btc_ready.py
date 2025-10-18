@@ -107,13 +107,48 @@ def process_file(in_path, out_path):
 def main():
     parser = argparse.ArgumentParser(description="Generate ready features with future price labels.")
     parser.add_argument("--pair", required=True, help="Trading pair, e.g. BTCUSDT")
+    parser.add_argument("--from", dest="from_date", help="Start date (YYYY-MM-DD), inclusive")
+    parser.add_argument("--to", dest="to_date", help="End date (YYYY-MM-DD), exclusive")
+    parser.add_argument("--skip-existing", action="store_true", help="Skip days already processed if output exists")
+    parser.add_argument("--force", action="store_true", help="Force regeneration and overwrite output files")
     args = parser.parse_args()
+
     pair = args.pair.upper()
     in_dir = Path(f"data/augmented/{pair}")
     out_dir = Path(f"data/ready/{pair}")
-    for in_file in sorted(in_dir.glob("*.csv")):
-        out_file = out_dir / in_file.name
-        process_file(in_file, out_file)
+
+    # Date filtering
+    if args.from_date and args.to_date:
+        from datetime import datetime, timezone, timedelta
+        from_dt = datetime.strptime(args.from_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        to_dt = datetime.strptime(args.to_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        current = from_dt
+        while current < to_dt:
+            in_file = in_dir / f"{current.strftime('%Y-%m-%d')}.csv"
+            out_file = out_dir / in_file.name
+            if not in_file.exists():
+                print(f"No augmented file for {in_file}")
+                current += timedelta(days=1)
+                continue
+            if out_file.exists():
+                if args.skip_existing and not args.force:
+                    print(f"Skipping {out_file} (already exists)")
+                    current += timedelta(days=1)
+                    continue
+                if args.force:
+                    print(f"Overwriting {out_file}")
+            process_file(in_file, out_file)
+            current += timedelta(days=1)
+    else:
+        for in_file in sorted(in_dir.glob("*.csv")):
+            out_file = out_dir / in_file.name
+            if out_file.exists():
+                if args.skip_existing and not args.force:
+                    print(f"Skipping {out_file} (already exists)")
+                    continue
+                if args.force:
+                    print(f"Overwriting {out_file}")
+            process_file(in_file, out_file)
 
 if __name__ == "__main__":
     main()

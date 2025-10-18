@@ -73,6 +73,7 @@ def process_day(pair, day_path, out_dir, windows):
         ohlcv = aggregate_ohlcv(df, window)
         ohlcv = add_indicators(ohlcv)
         ohlcv = add_stats(ohlcv)
+        ohlcv = ohlcv.reset_index()  # Ensure 'ts' is a column before prefixing
         # Rename columns to include window prefix, except for 'ts'
         ohlcv = ohlcv.add_prefix(f"{window}_")
         ohlcv = ohlcv.rename(columns={f"{window}_ts": "ts"})
@@ -82,7 +83,20 @@ def process_day(pair, day_path, out_dir, windows):
     for d in dfs[1:]:
         merged = pd.merge(merged, d, on="ts", how="outer")
     merged = merged.sort_values("ts").reset_index(drop=True)
+    # Ensure 'ts' is the first column
+    if 'ts' in merged.columns:
+        cols = ['ts'] + [c for c in merged.columns if c != 'ts']
+        merged = merged[cols]
     out_path = out_dir / f"{day_path.stem}.csv"
+    # Handle skip_existing and force flags
+    skip_existing = getattr(process_day, "skip_existing", False)
+    force = getattr(process_day, "force", False)
+    if out_path.exists():
+        if skip_existing and not force:
+            print(f"Skipping {out_path} (already exists)")
+            return
+        if force:
+            print(f"Overwriting {out_path}")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     merged.to_csv(out_path, index=False)
     print(f"Saved merged {out_path}")
@@ -93,6 +107,8 @@ def main():
     parser.add_argument("--from", dest="from_date", required=True)
     parser.add_argument("--to", dest="to_date", required=True)
     parser.add_argument("--windows", nargs="*", default=["5min","15min","1h","4h","1d"])
+    parser.add_argument("--skip-existing", action="store_true", help="Skip days already processed if output exists")
+    parser.add_argument("--force", action="store_true", help="Force regeneration and overwrite output files")
     args = parser.parse_args()
 
     pair = args.pair.upper()
@@ -105,6 +121,9 @@ def main():
     while current < to_dt:
         day_path = in_dir / f"{current.strftime('%Y-%m-%d')}.csv"
         if day_path.exists():
+            # Set skip_existing flag for process_day
+            process_day.skip_existing = args.skip_existing
+            process_day.force = args.force
             process_day(pair, day_path, out_dir, args.windows)
         else:
             print(f"No raw data for {day_path}")
