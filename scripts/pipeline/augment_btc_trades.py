@@ -83,10 +83,30 @@ def process_day(pair, day_path, out_dir, windows):
     for d in dfs[1:]:
         merged = pd.merge(merged, d, on="ts", how="outer")
     merged = merged.sort_values("ts").reset_index(drop=True)
+    
+    # Remove duplicate columns (keep first occurrence)
+    merged = merged.loc[:, ~merged.columns.duplicated()]
+    
     # Ensure 'ts' is the first column
     if 'ts' in merged.columns:
         cols = ['ts'] + [c for c in merged.columns if c != 'ts']
         merged = merged[cols]
+
+    # Fill NaN values with statistically meaningful defaults
+    # Identify columns AFTER removing duplicates
+    all_cols = list(merged.columns)
+    price_cols = [c for c in all_cols if any(x in c for x in ["open","high","low","close"])]
+    volume_cols = [c for c in all_cols if "volume" in c]
+    indicator_cols = [c for c in all_cols if any(x in c for x in ["sma","ema","bb_","rsi","atr","stoch","adx","macd","signal"])]
+    returns_cols = [c for c in all_cols if "return" in c or "volatility" in c or "drawdown" in c or "sharpe" in c or "sortino" in c or "skew" in c or "kurtosis" in c]
+
+    # Fill NaN column by column to avoid shape mismatch errors
+    for col in price_cols + indicator_cols:
+        merged[col] = merged[col].ffill().bfill()
+    for col in volume_cols:
+        merged[col] = merged[col].fillna(0)
+    for col in returns_cols:
+        merged[col] = merged[col].fillna(0)
     out_path = out_dir / f"{day_path.stem}.csv"
     # Handle skip_existing and force flags
     skip_existing = getattr(process_day, "skip_existing", False)

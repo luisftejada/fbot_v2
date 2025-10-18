@@ -1,6 +1,6 @@
 import pytest
 from decimal import Decimal
-from scripts.generate_ready import calc_max_future_price, calc_min_future_price, STEP_BACK_PERC, LOSS_PERC
+from scripts.pipeline.generate_btc_ready import calc_max_future_price, calc_min_future_price, STEP_BACK_PERC, LOSS_PERC
 
 # Tests para calc_max_future_price
 
