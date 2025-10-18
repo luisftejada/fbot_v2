@@ -1,0 +1,19 @@
+[project]
+name = "fbot-v2"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Luis Tejada",email = "luis.tejada.consultant@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "python-binance (>=1.0.30,<2.0.0)",
+    "pandas (>=2.3.3,<3.0.0)"
+    ,"ta (>=0.11.0,<1.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,5 @@
+# Ignore all files in data directory
+/data/
+
+# Ignore all files in scripts/tmp directory
+/scripts/tmp/
